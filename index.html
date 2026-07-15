@@ -1,10 +1,228 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Digital Passport</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Passport</title>
+
+<style>
+body{
+    font-family:Segoe UI,Arial,sans-serif;
+    max-width:800px;
+    margin:auto;
+    padding:20px;
+    background:#f5f7fb;
+}
+
+.card{
+    background:white;
+    border-radius:12px;
+    padding:20px;
+    margin-bottom:15px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+
+button{
+    background:#0078d4;
+    color:white;
+    border:none;
+    padding:10px 15px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#106ebe;
+}
+
+.activity{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+    border-bottom:1px solid #eee;
+}
+
+.completed{
+    color:green;
+    font-weight:bold;
+}
+
+.progress{
+    width:100%;
+    background:#ddd;
+    border-radius:20px;
+    overflow:hidden;
+    margin-top:10px;
+}
+
+.progress-bar{
+    height:20px;
+    background:#0078d4;
+    width:0%;
+}
+
+.hidden{
+    display:none;
+}
+</style>
 </head>
+
 <body>
-    <h1>Digital Passport</h1>
-    <p>Hello World</p>
+
+<h1>🎫 Digital Passport</h1>
+
+<div id="loginCard" class="card">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Enter your email"
+           style="width:100%;padding:10px;">
+    <br><br>
+    <button onclick="login()">Continue</button>
+</div>
+
+<div id="passportCard" class="card hidden">
+    <h2>Welcome</h2>
+    <p id="userEmail"></p>
+
+    <div class="progress">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <p id="progressText"></p>
+
+    <h3>Activities</h3>
+
+    <div id="activities"></div>
+
+    <br>
+
+    <button onclick="scanActivity()">Scan QR Code</button>
+
+    <div id="badgeSection"></div>
+</div>
+
+<script>
+
+const activities = [
+    {id:"ACT001",name:"Copilot Fundamentals"},
+    {id:"ACT002",name:"Prompt Engineering"},
+    {id:"ACT003",name:"Agent Development"},
+    {id:"ACT004",name:"Azure AI"},
+    {id:"ACT005",name:"Security Copilot"}
+];
+
+function login() {
+    const email = document.getElementById("email").value;
+
+    if(!email){
+        alert("Enter email");
+        return;
+    }
+
+    localStorage.setItem("passportEmail",email);
+
+    if(!localStorage.getItem("completedActivities")){
+        localStorage.setItem("completedActivities",JSON.stringify([]));
+    }
+
+    loadPassport();
+}
+
+function loadPassport(){
+
+    const email = localStorage.getItem("passportEmail");
+
+    if(!email){
+        return;
+    }
+
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("passportCard").classList.remove("hidden");
+
+    document.getElementById("userEmail").innerText=email;
+
+    renderActivities();
+}
+
+function renderActivities(){
+
+    const completed=
+      JSON.parse(localStorage.getItem("completedActivities")||"[]");
+
+    let html="";
+
+    activities.forEach(a=>{
+
+        const done=completed.includes(a.id);
+
+        html+=`
+            <div class="activity">
+                <span>${a.name}</span>
+                <span class="${done?'completed':''}">
+                    ${done?'✅ Completed':'⏳ Pending'}
+                </span>
+            </div>
+        `;
+    });
+
+    document.getElementById("activities").innerHTML=html;
+
+    const percent=(completed.length/activities.length)*100;
+
+    document.getElementById("progressBar").style.width=
+      percent+"%";
+
+    document.getElementById("progressText").innerText=
+      `${completed.length} of ${activities.length} completed`;
+
+    const badge=document.getElementById("badgeSection");
+
+    if(completed.length===activities.length){
+        badge.innerHTML=
+          "<h2>🏆 Passport Completed!</h2>";
+    }else if(completed.length>=3){
+        badge.innerHTML=
+          "<h3>🥉 Bronze Badge Earned</h3>";
+    }else{
+        badge.innerHTML="";
+    }
+}
+
+function scanActivity(){
+
+    const activityId=
+      prompt("Enter Activity ID (e.g. ACT001)");
+
+    if(!activityId){
+        return;
+    }
+
+    let completed=
+      JSON.parse(localStorage.getItem("completedActivities"));
+
+    if(!activities.some(a=>a.id===activityId)){
+        alert("Invalid activity");
+        return;
+    }
+
+    if(!completed.includes(activityId)){
+        completed.push(activityId);
+        localStorage.setItem(
+            "completedActivities",
+            JSON.stringify(completed)
+        );
+
+        alert("Activity Completed ✅");
+    }
+    else{
+        alert("Activity already completed");
+    }
+
+    renderActivities();
+}
+
+window.onload=loadPassport;
+
+</script>
+
 </body>
 </html>
