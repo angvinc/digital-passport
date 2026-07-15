@@ -5,64 +5,77 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Digital Passport</title>
 
+<script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
 body{
     font-family:Segoe UI,Arial,sans-serif;
+    background:#f3f6fb;
     max-width:800px;
     margin:auto;
     padding:20px;
-    background:#f5f7fb;
 }
-
 .card{
     background:white;
-    border-radius:12px;
     padding:20px;
+    border-radius:12px;
     margin-bottom:15px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.08);
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
 }
-
 button{
-    background:#0078d4;
+    background:#0078D4;
     color:white;
     border:none;
-    padding:10px 15px;
+    padding:10px 16px;
     border-radius:6px;
     cursor:pointer;
 }
-
 button:hover{
-    background:#106ebe;
+    background:#106EBE;
 }
-
+input{
+    width:100%;
+    padding:10px;
+    border:1px solid #ccc;
+    border-radius:6px;
+}
+.hidden{
+    display:none;
+}
 .activity{
     display:flex;
     justify-content:space-between;
     padding:10px 0;
     border-bottom:1px solid #eee;
 }
-
-.completed{
+.complete{
     color:green;
     font-weight:bold;
 }
-
 .progress{
     width:100%;
+    height:20px;
     background:#ddd;
     border-radius:20px;
     overflow:hidden;
-    margin-top:10px;
 }
-
 .progress-bar{
     height:20px;
-    background:#0078d4;
     width:0%;
+    background:#0078D4;
 }
-
-.hidden{
-    display:none;
+.badge{
+    padding:10px;
+    border-radius:8px;
+    color:white;
+    margin-top:10px;
+}
+.bronze{background:#CD7F32;}
+.silver{background:#808080;}
+.gold{background:#D4AF37;}
+#reader{
+    width:100%;
+    margin-top:15px;
 }
 </style>
 </head>
@@ -73,31 +86,35 @@ button:hover{
 
 <div id="loginCard" class="card">
     <h2>Login</h2>
-    <input type="email" id="email" placeholder="Enter your email"
-           style="width:100%;padding:10px;">
+    <input type="email" id="email" placeholder="Enter your email">
     <br><br>
     <button onclick="login()">Continue</button>
 </div>
 
 <div id="passportCard" class="card hidden">
+
     <h2>Welcome</h2>
-    <p id="userEmail"></p>
+    <div id="userEmail"></div>
+
+    <br>
 
     <div class="progress">
-        <div class="progress-bar" id="progressBar"></div>
+        <div id="progressBar" class="progress-bar"></div>
     </div>
 
     <p id="progressText"></p>
 
     <h3>Activities</h3>
-
     <div id="activities"></div>
 
     <br>
 
-    <button onclick="scanActivity()">Scan QR Code</button>
+    <button onclick="startScanner()">📷 Scan QR Code</button>
+
+    <div id="reader"></div>
 
     <div id="badgeSection"></div>
+
 </div>
 
 <script>
@@ -110,18 +127,21 @@ const activities = [
     {id:"ACT005",name:"Security Copilot"}
 ];
 
-function login() {
+let scannerRunning = false;
+
+function login(){
+
     const email = document.getElementById("email").value;
 
     if(!email){
-        alert("Enter email");
+        alert("Please enter your email.");
         return;
     }
 
     localStorage.setItem("passportEmail",email);
 
     if(!localStorage.getItem("completedActivities")){
-        localStorage.setItem("completedActivities",JSON.stringify([]));
+        localStorage.setItem("completedActivities","[]");
     }
 
     loadPassport();
@@ -131,98 +151,35 @@ function loadPassport(){
 
     const email = localStorage.getItem("passportEmail");
 
-    if(!email){
-        return;
-    }
+    if(!email) return;
 
     document.getElementById("loginCard").classList.add("hidden");
     document.getElementById("passportCard").classList.remove("hidden");
 
-    document.getElementById("userEmail").innerText=email;
+    document.getElementById("userEmail").innerHTML =
+        "<strong>"+email+"</strong>";
 
     renderActivities();
 }
 
 function renderActivities(){
 
-    const completed=
-      JSON.parse(localStorage.getItem("completedActivities")||"[]");
+    const completed =
+        JSON.parse(localStorage.getItem("completedActivities") || "[]");
 
-    let html="";
+    let html = "";
 
     activities.forEach(a=>{
 
-        const done=completed.includes(a.id);
+        let complete = completed.includes(a.id);
 
-        html+=`
-            <div class="activity">
-                <span>${a.name}</span>
-                <span class="${done?'completed':''}">
-                    ${done?'✅ Completed':'⏳ Pending'}
-                </span>
-            </div>
-        `;
+        html += `
+        <div class="activity">
+            <span>${a.name}</span>
+            <span class="${complete?'complete':''}">
+                ${complete?'✅ Completed':'⏳ Pending'}
+            </span>
+        </div>`;
     });
 
-    document.getElementById("activities").innerHTML=html;
-
-    const percent=(completed.length/activities.length)*100;
-
-    document.getElementById("progressBar").style.width=
-      percent+"%";
-
-    document.getElementById("progressText").innerText=
-      `${completed.length} of ${activities.length} completed`;
-
-    const badge=document.getElementById("badgeSection");
-
-    if(completed.length===activities.length){
-        badge.innerHTML=
-          "<h2>🏆 Passport Completed!</h2>";
-    }else if(completed.length>=3){
-        badge.innerHTML=
-          "<h3>🥉 Bronze Badge Earned</h3>";
-    }else{
-        badge.innerHTML="";
-    }
-}
-
-function scanActivity(){
-
-    const activityId=
-      prompt("Enter Activity ID (e.g. ACT001)");
-
-    if(!activityId){
-        return;
-    }
-
-    let completed=
-      JSON.parse(localStorage.getItem("completedActivities"));
-
-    if(!activities.some(a=>a.id===activityId)){
-        alert("Invalid activity");
-        return;
-    }
-
-    if(!completed.includes(activityId)){
-        completed.push(activityId);
-        localStorage.setItem(
-            "completedActivities",
-            JSON.stringify(completed)
-        );
-
-        alert("Activity Completed ✅");
-    }
-    else{
-        alert("Activity already completed");
-    }
-
-    renderActivities();
-}
-
-window.onload=loadPassport;
-
-</script>
-
-</body>
-</html>
+    document.
